@@ -1,7 +1,7 @@
 {
     "manifest_version": 3,
     "name": "NovExtractor",
-    "version": "1.0",
+    "version": "0.1.5",
     "description": "Adds a floating button to download Webnovel chapters as Markdown, pdf and epub.",
     "permissions": ["activeTab"],
     "content_scripts": [

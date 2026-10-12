@@ -1,9 +1,9 @@
 (() => {
-    if (document.getElementById('webnovel-download-container')) return;
+    if (document.getElementById('novextractor-container')) return;
 
     // 1. Create a container for the floating button and menu
     const container = document.createElement('div');
-    container.id = 'webnovel-download-container';
+    container.id = 'novextractor-container';
     container.style.cssText = `
         position: fixed;
         bottom: 30px;
@@ -14,9 +14,9 @@
 
     // 2. Create the main toggle button
     const mainBtn = document.createElement('button');
-    mainBtn.innerHTML = '📥 Export Chapter ▼';
+    mainBtn.innerHTML = '📥 NovExtractor ▼';
     mainBtn.style.cssText = `
-        background: #10b981;
+        background: #014bb9;
         color: white;
         border: none;
         padding: 12px 20px;
@@ -28,8 +28,8 @@
         transition: background 0.2s, transform 0.2s;
     `;
 
-    mainBtn.onmouseover = () => { mainBtn.style.background = '#059669'; mainBtn.style.transform = 'translateY(-2px)'; };
-    mainBtn.onmouseout = () => { mainBtn.style.background = '#10b981'; mainBtn.style.transform = 'translateY(0)'; };
+    mainBtn.onmouseover = () => { mainBtn.style.background = '#0257d6'; mainBtn.style.transform = 'translateY(-2px)'; };
+    mainBtn.onmouseout = () => { mainBtn.style.background = '#014bb9'; mainBtn.style.transform = 'translateY(0)'; };
 
     // 3. Create the dropdown menu
     const menu = document.createElement('div');
@@ -42,11 +42,10 @@
         box-shadow: 0 8px 24px rgba(0,0,0,0.2);
         border-radius: 12px;
         overflow: hidden;
-        min-width: 160px;
+        min-width: 170px;
         flex-direction: column;
     `;
 
-    // Helper to style dropdown options
     const createOption = (text, onClick) => {
         const opt = document.createElement('button');
         opt.innerHTML = text;
@@ -71,7 +70,6 @@
         return opt;
     };
 
-    // Toggle dropdown visibility
     mainBtn.onclick = (e) => {
         e.stopPropagation();
         menu.style.display = menu.style.display === 'flex' ? 'none' : 'flex';
@@ -81,7 +79,6 @@
         menu.style.display = 'none';
     });
 
-    // --- Extraction Logic ---
     const extractData = () => {
         const titleElement = document.querySelector('h1, .cha-tit, .chapter_title') || document.title;
         const title = typeof titleElement === 'string' ? titleElement : (titleElement ? titleElement.innerText.trim() : 'Webnovel_Chapter');
@@ -116,28 +113,44 @@
         URL.revokeObjectURL(url);
     }));
 
-    // --- Option 2: Save as PDF (Auto-triggers print dialog) ---
+    // --- Option 2: Save as PDF (With Shortcut Instructions) ---
     menu.appendChild(createOption('📑 Save as PDF', () => {
         const { title, content } = extractData();
         const printWindow = window.open('', '_blank', 'width=800,height=900');
+        if (!printWindow) {
+            alert('Popup blocked! Please allow popups for this site to save as PDF.');
+            return;
+        }
+
         printWindow.document.write(`
             <html>
             <head>
                 <title>${title}</title>
                 <style>
-                    body { font-family: Georgia, serif; line-height: 1.8; color: #111; max-width: 700px; margin: 60px auto; padding: 0 20px; }
-                    h1 { font-size: 24px; border-bottom: 1px solid #ccc; padding-bottom: 10px; margin-bottom: 30px; }
-                    p { margin-bottom: 20px; font-size: 16px; text-align: justify; white-space: pre-wrap; }
+                    body { font-family: Georgia, serif; line-height: 1.8; color: #111; max-width: 700px; margin: 40px auto; padding: 0 20px; }
+                    .instruction-banner { background: #e0f2fe; color: #0369a1; padding: 14px 18px; border-radius: 8px; font-family: sans-serif; font-size: 14px; margin-bottom: 25px; border-left: 4px solid #0284c7; line-height: 1.5; }
+                    h1 { font-size: 22px; border-bottom: 1px solid #ccc; padding-bottom: 10px; margin-bottom: 25px; }
+                    p { margin-bottom: 20px; font-size: 15px; text-align: justify; white-space: pre-wrap; }
+                    @media print {
+                        .instruction-banner { display: none; } /* Hides instruction box from the final PDF output */
+                    }
                 </style>
             </head>
             <body>
+                <div class="instruction-banner">
+                    <strong>💡 How to save as PDF:</strong><br>
+                    1. If the print dialog doesn't pop up automatically, press <b>Ctrl + P</b> (Windows) or <b>Cmd + P</b> (Mac).<br>
+                    2. Uncheck headers and footer.
+                    3. Change the Destination to <b>"Save as PDF"</b> and click <b>Save</b>!
+                </div>
                 <h1>${title}</h1>
                 <div>${content}</div>
                 <script>
-                    // Automatically triggers the browser's PDF save dialog
-                    setTimeout(() => {
-                        window.print();
-                    }, 500);
+                    window.onload = () => {
+                        setTimeout(() => {
+                            window.print();
+                        }, 500);
+                    };
                 </script>
             </body>
             </html>
@@ -145,10 +158,9 @@
         printWindow.document.close();
     }));
 
-    // --- Option 3: Download EPUB Structure (.html container readable as ePub) ---
+    // --- Option 3: Download EPUB ---
     menu.appendChild(createOption('📖 Download EPUB', () => {
         const { title, content, safeFilename } = extractData();
-        // Generates a well-structured XHTML bundle compatible with e-readers
         const epubHtml = `<!DOCTYPE html>
         <html xmlns="http://www.w3.org/1999/xhtml">
         <head><title>${title}</title></head>
@@ -171,5 +183,5 @@
     container.appendChild(mainBtn);
     container.appendChild(menu);
     document.body.appendChild(container);
-    console.log('Multi-format Webnovel exporter loaded successfully!');
+    console.log('NovExtractor loaded successfully!');
 })();
