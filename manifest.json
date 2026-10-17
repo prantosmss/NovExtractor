@@ -1,13 +1,18 @@
 {
     "manifest_version": 3,
     "name": "NovExtractor",
-    "version": "0.1.5",
-    "description": "Adds a floating button to download Webnovel chapters as Markdown, pdf and epub.",
-    "permissions": ["activeTab"],
-    "content_scripts": [
-        {
-            "matches": ["https://www.webnovel.com/book/*"],
-            "js": ["content.js"]
-        }
-    ]
+    "version": "0.2.0",
+    "description": "Export the chapter you're reading to EPUB, Markdown or PDF. Runs only on the sites you add, entirely in your browser.",
+    "permissions": ["storage", "scripting"],
+    "optional_host_permissions": ["http://*/*", "https://*/*"],
+    "background": {
+        "service_worker": "background.js"
+    },
+    "action": {
+        "default_title": "NovExtractor settings"
+    },
+    "options_ui": {
+        "page": "options.html",
+        "open_in_tab": true
+    }
 }

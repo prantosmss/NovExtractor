@@ -1,187 +1,127 @@
-(() => {
+/* It's the dedicated script for the floating export button. 
+It's only injected on sites the user added in the options page. */
+
+(async () => {
     if (document.getElementById('novextractor-container')) return;
+    const { extract, toMarkdown, toPrintHtml, epubFiles } = globalThis.NovCore;
 
-    // 1. Create a container for the floating button and menu
-    const container = document.createElement('div');
-    container.id = 'novextractor-container';
-    container.style.cssText = `
-        position: fixed;
-        bottom: 30px;
-        right: 30px;
-        z-index: 999999;
-        font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
-    `;
+    // Per-site settings (optional CSS selectors) saved on the options page.
+    let siteConfig = {};
+    try {
+        const { sites } = await chrome.storage.sync.get('sites');
+        siteConfig = (sites || []).find((s) => s.host === location.hostname) || {};
+    } catch (err) {
+    // Settings unreadable (e.g. extension was just reloaded/updated):
+    // It keeps the empty config so automatic chapter detection still works.
+    console.warn('[NovExtractor] Could not read site settings, using auto-detection:', err);
+}
 
-    // 2. Create the main toggle button
-    const mainBtn = document.createElement('button');
-    mainBtn.innerHTML = '📥 NovExtractor ▼';
-    mainBtn.style.cssText = `
-        background: #014bb9;
-        color: white;
-        border: none;
-        padding: 12px 20px;
-        font-size: 15px;
-        font-weight: 600;
-        border-radius: 50px;
-        box-shadow: 0 4px 15px rgba(0, 0, 0, 0.25);
-        cursor: pointer;
-        transition: background 0.2s, transform 0.2s;
-    `;
+    const host = document.createElement('div');
+    host.id = 'novextractor-container';
+    host.style.cssText = 'position:fixed;bottom:30px;right:30px;z-index:2147483647;';
+    // Shadow DOM keeps the page's CSS from restyling the widget (and vice versa).
+    const root = host.attachShadow({ mode: 'closed' });
 
-    mainBtn.onmouseover = () => { mainBtn.style.background = '#0257d6'; mainBtn.style.transform = 'translateY(-2px)'; };
-    mainBtn.onmouseout = () => { mainBtn.style.background = '#014bb9'; mainBtn.style.transform = 'translateY(0)'; };
+    root.innerHTML = `
+        <style>
+            :host { all: initial; }
+            .wrap { position: relative; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; }
+            .main {
+                background: #014bb9; color: #fff; border: none; padding: 12px 20px;
+                font-weight: 600; font-size: 15px; font-family: inherit; border-radius: 50px;
+                box-shadow: 0 4px 15px rgba(0,0,0,.25); cursor: pointer;
+                transition: background .2s, transform .2s;
+            }
+            .main:hover { background: #0257d6; transform: translateY(-2px); }
+            .menu {
+                display: none; position: absolute; bottom: 55px; right: 0; background: #fff;
+                box-shadow: 0 8px 24px rgba(0,0,0,.2); border-radius: 12px; overflow: hidden;
+                min-width: 180px; flex-direction: column;
+            }
+            .menu.open { display: flex; }
+            .opt {
+                background: none; border: none; padding: 12px 16px; text-align: left;
+                font-weight: 500; font-size: 14px; font-family: inherit; color: #333; cursor: pointer; width: 100%;
+            }
+            .opt:hover { background: #f3f4f6; }
+            .toast {
+                position: absolute; bottom: 55px; right: 0; width: 260px; background: #1b1f24; color: #fff;
+                padding: 10px 14px; border-radius: 10px; font-size: 13px; line-height: 1.4; display: none;
+                box-shadow: 0 8px 24px rgba(0,0,0,.3);
+            }
+            .toast.show { display: block; }
+        </style>
+        <div class="wrap">
+            <div class="toast" role="status"></div>
+            <div class="menu">
+                <button class="opt" data-act="md">Download .md</button>
+                <button class="opt" data-act="epub">Download .epub</button>
+                <button class="opt" data-act="pdf">Save as PDF</button>
+            </div>
+            <button class="main" aria-haspopup="true">NovExtractor ▾</button>
+        </div>`;
 
-    // 3. Create the dropdown menu
-    const menu = document.createElement('div');
-    menu.style.cssText = `
-        display: none;
-        position: absolute;
-        bottom: 55px;
-        right: 0;
-        background: white;
-        box-shadow: 0 8px 24px rgba(0,0,0,0.2);
-        border-radius: 12px;
-        overflow: hidden;
-        min-width: 170px;
-        flex-direction: column;
-    `;
+    const menu = root.querySelector('.menu');
+    const toast = root.querySelector('.toast');
+    let toastTimer;
 
-    const createOption = (text, onClick) => {
-        const opt = document.createElement('button');
-        opt.innerHTML = text;
-        opt.style.cssText = `
-            background: none;
-            border: none;
-            padding: 12px 16px;
-            text-align: left;
-            font-size: 14px;
-            font-weight: 500;
-            color: #333;
-            cursor: pointer;
-            width: 100%;
-        `;
-        opt.onmouseover = () => opt.style.background = '#f3f4f6';
-        opt.onmouseout = () => opt.style.background = 'none';
-        opt.onclick = (e) => {
-            e.stopPropagation();
-            menu.style.display = 'none';
-            onClick();
-        };
-        return opt;
+    const showToast = (msg) => {
+        toast.textContent = msg;
+        toast.classList.add('show');
+        clearTimeout(toastTimer);
+        toastTimer = setTimeout(() => toast.classList.remove('show'), 6000);
     };
 
-    mainBtn.onclick = (e) => {
-        e.stopPropagation();
-        menu.style.display = menu.style.display === 'flex' ? 'none' : 'flex';
-    };
-
-    document.addEventListener('click', () => {
-        menu.style.display = 'none';
-    });
-
-    const extractData = () => {
-        const titleElement = document.querySelector('h1, .cha-tit, .chapter_title') || document.title;
-        const title = typeof titleElement === 'string' ? titleElement : (titleElement ? titleElement.innerText.trim() : 'Webnovel_Chapter');
-        
-        const paragraphElements = document.querySelectorAll('.cha-words p, .chapter-content p, div[class*="content"] p');
-        let content = '';
-        if (paragraphElements.length > 0) {
-            paragraphElements.forEach(p => {
-                const text = p.innerText.trim();
-                if (text) content += text + '\n\n';
-            });
-        } else {
-            const fallbackContainer = document.querySelector('.cha-words, .chapter-content');
-            content = fallbackContainer ? fallbackContainer.innerText.trim() : 'Content not found.';
-        }
-        const safeFilename = title.replace(/[^a-z0-9]/gi, '_').toLowerCase();
-        return { title, content, safeFilename };
-    };
-
-    // --- Option 1: Download Markdown (.md) ---
-    menu.appendChild(createOption('📄 Download .md', () => {
-        const { title, content, safeFilename } = extractData();
-        const markdownData = `# ${title}\n\n${content}`;
-        const blob = new Blob([markdownData], { type: 'text/markdown;charset=utf-8;' });
+    const download = (blob, filename) => {
         const url = URL.createObjectURL(blob);
         const link = document.createElement('a');
         link.href = url;
-        link.download = safeFilename + '.md';
+        link.download = filename;
         document.body.appendChild(link);
         link.click();
-        document.body.removeChild(link);
-        URL.revokeObjectURL(url);
-    }));
+        link.remove();
+        setTimeout(() => URL.revokeObjectURL(url), 10000);
+    };
 
-    // --- Option 2: Save as PDF (With Shortcut Instructions) ---
-    menu.appendChild(createOption('📑 Save as PDF', () => {
-        const { title, content } = extractData();
-        const printWindow = window.open('', '_blank', 'width=800,height=900');
-        if (!printWindow) {
-            alert('Popup blocked! Please allow popups for this site to save as PDF.');
+    const actions = {
+        md(data) {
+            download(new Blob([toMarkdown(data)], { type: 'text/markdown;charset=utf-8' }), data.safeFilename + '.md');
+        },
+        epub(data) {
+            const blob = globalThis.NovZip.build(epubFiles(data, document.documentElement.lang));
+            download(blob, data.safeFilename + '.epub');
+        },
+        pdf(data) {
+            const win = window.open('', '_blank', 'width=800,height=900');
+            if (!win) {
+                showToast('Popup blocked. Allow popups for this site to save as PDF.');
+                return;
+            }
+            win.document.write(toPrintHtml(data));
+            win.document.close();
+            setTimeout(() => win.print(), 500);
+        }
+    };
+
+    root.querySelector('.main').addEventListener('click', (e) => {
+        e.stopPropagation();
+        menu.classList.toggle('open');
+    });
+    document.addEventListener('click', () => menu.classList.remove('open'));
+
+    menu.addEventListener('click', (e) => {
+        const btn = e.target.closest('.opt');
+        if (!btn) return;
+        e.stopPropagation();
+        menu.classList.remove('open');
+
+        const data = extract(document, siteConfig);
+        if (!data.found) {
+            showToast('Could not find the chapter text on this page. Open NovExtractor settings and set a text selector for this site.');
             return;
         }
+        actions[btn.dataset.act](data);
+    });
 
-        printWindow.document.write(`
-            <html>
-            <head>
-                <title>${title}</title>
-                <style>
-                    body { font-family: Georgia, serif; line-height: 1.8; color: #111; max-width: 700px; margin: 40px auto; padding: 0 20px; }
-                    .instruction-banner { background: #e0f2fe; color: #0369a1; padding: 14px 18px; border-radius: 8px; font-family: sans-serif; font-size: 14px; margin-bottom: 25px; border-left: 4px solid #0284c7; line-height: 1.5; }
-                    h1 { font-size: 22px; border-bottom: 1px solid #ccc; padding-bottom: 10px; margin-bottom: 25px; }
-                    p { margin-bottom: 20px; font-size: 15px; text-align: justify; white-space: pre-wrap; }
-                    @media print {
-                        .instruction-banner { display: none; } /* Hides instruction box from the final PDF output */
-                    }
-                </style>
-            </head>
-            <body>
-                <div class="instruction-banner">
-                    <strong>💡 How to save as PDF:</strong><br>
-                    1. If the print dialog doesn't pop up automatically, press <b>Ctrl + P</b> (Windows) or <b>Cmd + P</b> (Mac).<br>
-                    2. Uncheck headers and footer.
-                    3. Change the Destination to <b>"Save as PDF"</b> and click <b>Save</b>!
-                </div>
-                <h1>${title}</h1>
-                <div>${content}</div>
-                <script>
-                    window.onload = () => {
-                        setTimeout(() => {
-                            window.print();
-                        }, 500);
-                    };
-                </script>
-            </body>
-            </html>
-        `);
-        printWindow.document.close();
-    }));
-
-    // --- Option 3: Download EPUB ---
-    menu.appendChild(createOption('📖 Download EPUB', () => {
-        const { title, content, safeFilename } = extractData();
-        const epubHtml = `<!DOCTYPE html>
-        <html xmlns="http://www.w3.org/1999/xhtml">
-        <head><title>${title}</title></head>
-        <body>
-            <h1>${title}</h1>
-            <div>${content.replace(/\n\n/g, '</p><p>')}</div>
-        </body>
-        </html>`;
-        const blob = new Blob([epubHtml], { type: 'application/epub+zip;charset=utf-8;' });
-        const url = URL.createObjectURL(blob);
-        const link = document.createElement('a');
-        link.href = url;
-        link.download = safeFilename + '.epub';
-        document.body.appendChild(link);
-        link.click();
-        document.body.removeChild(link);
-        URL.revokeObjectURL(url);
-    }));
-
-    container.appendChild(mainBtn);
-    container.appendChild(menu);
-    document.body.appendChild(container);
-    console.log('NovExtractor loaded successfully!');
+    document.body.appendChild(host);
 })();
