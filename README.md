@@ -1,4 +1,4 @@
-# NovExtractor
+# _NovExtractor_ 
 
 A small Chrome extension that exports the web novel chapter you're reading to **Markdown**, **EPUB** or **PDF**.
 
@@ -10,9 +10,11 @@ A small Chrome extension that exports the web novel chapter you're reading to **
 
 ## Install
 
-1. Download or clone this repo.
-2. Open `chrome://extensions` and turn on **Developer mode**.
-3. Click **Load unpacked** and select the `NovExtractor` folder.
+- **Clean Floating Widget:** Injects a subtle, beautifully styled menu button directly into your reading pages without cluttering the screen.
+- **Markdown Export (`.md`):** Instantly extracts the chapter title and paragraphs into a clean Markdown text file for note-taking apps or personal archiving.
+- **EPUB Export:** Packages the extracted chapter into a structured HTML/EPUB structure.
+- **PDF Export:** Opens a clean print-optimized preview layout with shortcut instructions to effortlessly save your chapters as a physical PDF.
+- **Custom Theme:** Styled with a sleek deep blue interface (`#014bb9`) matching a modern aesthetic.
 
 ## Use
 
@@ -42,23 +44,7 @@ NovExtractor is for **personal offline reading and archiving** of content you ar
 | `scripting` | Registers the export button for the sites you added. |
 | optional host access | Requested per site, only when you add it. |
 
-## Project structure
-
-```
-manifest.json    Manifest V3 config
-background.js    Registers the content script for the sites you added
-options.html/js  Settings page: add and remove sites, custom selectors
-core.js          Chapter detection and Markdown / EPUB / print formatting
-zip.js           Minimal ZIP writer used to build the EPUB
-content.js       The floating export button
-```
-
-## Limitations
-
-- Exports **one chapter at a time**. Bulk export is not supported.
-- Chapter detection is a heuristic. Sites that load text in unusual ways may need a custom selector.
-- PDF export uses your browser's print dialog (Save as PDF).
-
-## License
-
-MIT
+```text
+NovExtractor/
+├── manifest.json   # Chrome extension configuration manifest
+└── content.js      # Core extraction logic and UI layout controller

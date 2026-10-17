@@ -5,22 +5,32 @@ It's only injected on sites the user added in the options page. */
     if (document.getElementById('novextractor-container')) return;
     const { extract, toMarkdown, toPrintHtml, epubFiles } = globalThis.NovCore;
 
-    // Per-site settings (optional CSS selectors) saved on the options page.
-    let siteConfig = {};
-    try {
-        const { sites } = await chrome.storage.sync.get('sites');
-        siteConfig = (sites || []).find((s) => s.host === location.hostname) || {};
-    } catch (err) {
-    // Settings unreadable (e.g. extension was just reloaded/updated):
-    // It keeps the empty config so automatic chapter detection still works.
-    console.warn('[NovExtractor] Could not read site settings, using auto-detection:', err);
-}
+    // floating container
+    const container = document.createElement('div');
+    container.id = 'novextractor-container';
+    container.style.cssText = `
+        position: fixed;
+        bottom: 30px;
+        right: 30px;
+        z-index: 999999;
+        font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    `;
 
-    const host = document.createElement('div');
-    host.id = 'novextractor-container';
-    host.style.cssText = 'position:fixed;bottom:30px;right:30px;z-index:2147483647;';
-    // Shadow DOM keeps the page's CSS from restyling the widget (and vice versa).
-    const root = host.attachShadow({ mode: 'closed' });
+    // main button
+    const mainBtn = document.createElement('button');
+    mainBtn.innerHTML = '📥 NovExtractor ▼';
+    mainBtn.style.cssText = `
+        background: #014bb9;
+        color: white;
+        border: none;
+        padding: 12px 20px;
+        font-size: 15px;
+        font-weight: 600;
+        border-radius: 50px;
+        box-shadow: 0 4px 15px rgba(0, 0, 0, 0.25);
+        cursor: pointer;
+        transition: background 0.2s, transform 0.2s;
+    `;
 
     root.innerHTML = `
         <style>
@@ -61,9 +71,20 @@ It's only injected on sites the user added in the options page. */
             <button class="main" aria-haspopup="true">NovExtractor ▾</button>
         </div>`;
 
-    const menu = root.querySelector('.menu');
-    const toast = root.querySelector('.toast');
-    let toastTimer;
+    // dropdown menu
+    const menu = document.createElement('div');
+    menu.style.cssText = `
+        display: none;
+        position: absolute;
+        bottom: 55px;
+        right: 0;
+        background: white;
+        box-shadow: 0 8px 24px rgba(0,0,0,0.2);
+        border-radius: 12px;
+        overflow: hidden;
+        min-width: 170px;
+        flex-direction: column;
+    `;
 
     const showToast = (msg) => {
         toast.textContent = msg;
@@ -72,7 +93,39 @@ It's only injected on sites the user added in the options page. */
         toastTimer = setTimeout(() => toast.classList.remove('show'), 6000);
     };
 
-    const download = (blob, filename) => {
+    mainBtn.onclick = (e) => {
+        e.stopPropagation();
+        menu.style.display = menu.style.display === 'flex' ? 'none' : 'flex';
+    };
+
+    document.addEventListener('click', () => {
+        menu.style.display = 'none';
+    });
+
+    const extractData = () => {
+        const titleElement = document.querySelector('h1, .cha-tit, .chapter_title') || document.title;
+        const title = typeof titleElement === 'string' ? titleElement : (titleElement ? titleElement.innerText.trim() : 'Webnovel_Chapter');
+        
+        const paragraphElements = document.querySelectorAll('.cha-words p, .chapter-content p, div[class*="content"] p');
+        let content = '';
+        if (paragraphElements.length > 0) {
+            paragraphElements.forEach(p => {
+                const text = p.innerText.trim();
+                if (text) content += text + '\n\n';
+            });
+        } else {
+            const fallbackContainer = document.querySelector('.cha-words, .chapter-content');
+            content = fallbackContainer ? fallbackContainer.innerText.trim() : 'Content not found.';
+        }
+        const safeFilename = title.replace(/[^a-z0-9]/gi, '_').toLowerCase();
+        return { title, content, safeFilename };
+    };
+
+    // download md
+    menu.appendChild(createOption('📄 Download .md', () => {
+        const { title, content, safeFilename } = extractData();
+        const markdownData = `# ${title}\n\n${content}`;
+        const blob = new Blob([markdownData], { type: 'text/markdown;charset=utf-8;' });
         const url = URL.createObjectURL(blob);
         const link = document.createElement('a');
         link.href = url;
@@ -83,45 +136,77 @@ It's only injected on sites the user added in the options page. */
         setTimeout(() => URL.revokeObjectURL(url), 10000);
     };
 
-    const actions = {
-        md(data) {
-            download(new Blob([toMarkdown(data)], { type: 'text/markdown;charset=utf-8' }), data.safeFilename + '.md');
-        },
-        epub(data) {
-            const blob = globalThis.NovZip.build(epubFiles(data, document.documentElement.lang));
-            download(blob, data.safeFilename + '.epub');
-        },
-        pdf(data) {
-            const win = window.open('', '_blank', 'width=800,height=900');
-            if (!win) {
-                showToast('Popup blocked. Allow popups for this site to save as PDF.');
-                return;
-            }
-            win.document.write(toPrintHtml(data));
-            win.document.close();
-            setTimeout(() => win.print(), 500);
-        }
-    };
-
-    root.querySelector('.main').addEventListener('click', (e) => {
-        e.stopPropagation();
-        menu.classList.toggle('open');
-    });
-    document.addEventListener('click', () => menu.classList.remove('open'));
-
-    menu.addEventListener('click', (e) => {
-        const btn = e.target.closest('.opt');
-        if (!btn) return;
-        e.stopPropagation();
-        menu.classList.remove('open');
-
-        const data = extract(document, siteConfig);
-        if (!data.found) {
-            showToast('Could not find the chapter text on this page. Open NovExtractor settings and set a text selector for this site.');
+    // save as pdf
+    menu.appendChild(createOption('📑 Save as PDF', () => {
+        const { title, content } = extractData();
+        const printWindow = window.open('', '_blank', 'width=800,height=900');
+        if (!printWindow) {
+            alert('Popup blocked! Please allow popups for this site to save as PDF.');
             return;
         }
         actions[btn.dataset.act](data);
     });
 
-    document.body.appendChild(host);
+        printWindow.document.write(`
+            <html>
+            <head>
+                <title>${title}</title>
+                <style>
+                    body { font-family: Georgia, serif; line-height: 1.8; color: #111; max-width: 700px; margin: 40px auto; padding: 0 20px; }
+                    .instruction-banner { background: #e0f2fe; color: #0369a1; padding: 14px 18px; border-radius: 8px; font-family: sans-serif; font-size: 14px; margin-bottom: 25px; border-left: 4px solid #0284c7; line-height: 1.5; }
+                    h1 { font-size: 22px; border-bottom: 1px solid #ccc; padding-bottom: 10px; margin-bottom: 25px; }
+                    p { margin-bottom: 20px; font-size: 15px; text-align: justify; white-space: pre-wrap; }
+                    @media print {
+                        .instruction-banner { display: none; } /* Hides instruction box from the final PDF output */
+                    }
+                </style>
+            </head>
+            <body>
+                <div class="instruction-banner">
+                    <strong>💡 How to save as PDF:</strong><br>
+                    1. If the print dialog doesn't pop up automatically, press <b>Ctrl + P</b> (Windows) or <b>Cmd + P</b> (Mac).<br>
+                    2. Uncheck headers and footer.
+                    3. Change the Destination to <b>"Save as PDF"</b> and click <b>Save</b>!
+                </div>
+                <h1>${title}</h1>
+                <div>${content}</div>
+                <script>
+                    window.onload = () => {
+                        setTimeout(() => {
+                            window.print();
+                        }, 500);
+                    };
+                </script>
+            </body>
+            </html>
+        `);
+        printWindow.document.close();
+    }));
+
+    // download epub
+    menu.appendChild(createOption('📖 Download EPUB', () => {
+        const { title, content, safeFilename } = extractData();
+        const epubHtml = `<!DOCTYPE html>
+        <html xmlns="http://www.w3.org/1999/xhtml">
+        <head><title>${title}</title></head>
+        <body>
+            <h1>${title}</h1>
+            <div>${content.replace(/\n\n/g, '</p><p>')}</div>
+        </body>
+        </html>`;
+        const blob = new Blob([epubHtml], { type: 'application/epub+zip;charset=utf-8;' });
+        const url = URL.createObjectURL(blob);
+        const link = document.createElement('a');
+        link.href = url;
+        link.download = safeFilename + '.epub';
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        URL.revokeObjectURL(url);
+    }));
+
+    container.appendChild(mainBtn);
+    container.appendChild(menu);
+    document.body.appendChild(container);
+    console.log('NovExtractor loaded successfully!');
 })();
