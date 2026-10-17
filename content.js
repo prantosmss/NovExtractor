@@ -1,7 +1,7 @@
 (() => {
     if (document.getElementById('novextractor-container')) return;
 
-    // 1. Create a container for the floating button and menu
+    // floating container
     const container = document.createElement('div');
     container.id = 'novextractor-container';
     container.style.cssText = `
@@ -12,7 +12,7 @@
         font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
     `;
 
-    // 2. Create the main toggle button
+    // main button
     const mainBtn = document.createElement('button');
     mainBtn.innerHTML = '📥 NovExtractor ▼';
     mainBtn.style.cssText = `
@@ -31,7 +31,7 @@
     mainBtn.onmouseover = () => { mainBtn.style.background = '#0257d6'; mainBtn.style.transform = 'translateY(-2px)'; };
     mainBtn.onmouseout = () => { mainBtn.style.background = '#014bb9'; mainBtn.style.transform = 'translateY(0)'; };
 
-    // 3. Create the dropdown menu
+    // dropdown menu
     const menu = document.createElement('div');
     menu.style.cssText = `
         display: none;
@@ -98,7 +98,7 @@
         return { title, content, safeFilename };
     };
 
-    // --- Option 1: Download Markdown (.md) ---
+    // download md
     menu.appendChild(createOption('📄 Download .md', () => {
         const { title, content, safeFilename } = extractData();
         const markdownData = `# ${title}\n\n${content}`;
@@ -113,7 +113,7 @@
         URL.revokeObjectURL(url);
     }));
 
-    // --- Option 2: Save as PDF (With Shortcut Instructions) ---
+    // save as pdf
     menu.appendChild(createOption('📑 Save as PDF', () => {
         const { title, content } = extractData();
         const printWindow = window.open('', '_blank', 'width=800,height=900');
@@ -158,7 +158,7 @@
         printWindow.document.close();
     }));
 
-    // --- Option 3: Download EPUB ---
+    // download epub
     menu.appendChild(createOption('📖 Download EPUB', () => {
         const { title, content, safeFilename } = extractData();
         const epubHtml = `<!DOCTYPE html>
