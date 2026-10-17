@@ -6,11 +6,11 @@
 
 ## ✨ Features
 
-* ** Clean Floating Widget:** Injects a subtle, beautifully styled menu button directly into your reading pages without cluttering the screen.
-* ** Markdown Export (`.md`):** Instantly extracts the chapter title and paragraphs into a clean Markdown text file for note-taking apps or personal archiving.
-* ** EPUB Export:** Packages the extracted chapter into a structured HTML/EPUB structure.
-* ** PDF Export:** Opens a clean print-optimized preview layout with shortcut instructions to effortlessly save your chapters as a physical PDF.
-* ** Custom Theme:** Styled with a sleek deep blue interface (`#014bb9`) matching a modern aesthetic.
+- **Clean Floating Widget:** Injects a subtle, beautifully styled menu button directly into your reading pages without cluttering the screen.
+- **Markdown Export (`.md`):** Instantly extracts the chapter title and paragraphs into a clean Markdown text file for note-taking apps or personal archiving.
+- **EPUB Export:** Packages the extracted chapter into a structured HTML/EPUB structure.
+- **PDF Export:** Opens a clean print-optimized preview layout with shortcut instructions to effortlessly save your chapters as a physical PDF.
+- **Custom Theme:** Styled with a sleek deep blue interface (`#014bb9`) matching a modern aesthetic.
 
 ---
 
