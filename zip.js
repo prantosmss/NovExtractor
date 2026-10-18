@@ -1,4 +1,5 @@
-// Minimal ZIP writer (store only, no compression) used to build valid EPUB files without any third-party dependency.
+// Minimal ZIP writer (store only, no compression) used to build valid EPUB files
+// without any third-party dependency.
 (() => {
     const encoder = new TextEncoder();
 

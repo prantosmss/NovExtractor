@@ -1,8 +1,8 @@
 {
     "manifest_version": 3,
     "name": "NovExtractor",
-    "version": "0.2.0",
-    "description": "Export the chapter you're reading to EPUB, Markdown or PDF. Runs only on the sites you add, entirely in your browser.",
+    "version": "0.2.3",
+    "description": "Export the web novel chapter you're reading to Markdown, EPUB or PDF. Works only on sites you add yourself.",
     "permissions": ["storage", "scripting"],
     "optional_host_permissions": ["http://*/*", "https://*/*"],
     "background": {

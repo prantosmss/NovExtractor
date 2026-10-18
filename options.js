@@ -1,25 +1,41 @@
 const form = document.getElementById('add-form');
-const hostInput = document.getElementById('host');
+const linkInput = document.getElementById('link');
+const previewEl = document.getElementById('preview');
 const titleInput = document.getElementById('titleSel');
 const contentInput = document.getElementById('contentSel');
 const statusEl = document.getElementById('status');
 const listEl = document.getElementById('sites');
 const emptyEl = document.getElementById('empty');
 
+const DEFAULT_PREVIEW =
+    'Paste the address of any chapter page. NovExtractor picks out the site and finds the chapter text on its own.';
+
 function setStatus(msg, isError = false) {
     statusEl.textContent = msg;
     statusEl.className = isError ? 'error' : '';
 }
 
-function patternFor(host) {
-    return [`https://${host}/*`, `http://${host}/*`];
+// "example.com" and "www.example.com" are treated as the same site (see background.js).
+function hostVariants(host) {
+    const variants = new Set([host]);
+    if (host.startsWith('www.')) {
+        variants.add(host.slice(4));
+    } else if (host.split('.').length === 2) {
+        variants.add('www.' + host);
+    }
+    return [...variants];
 }
 
-// Accepts "example.com", "https://www.example.com/book/1", etc. Returns the bare hostname or null.
-function normalizeHost(input) {
-    let raw = input.trim().toLowerCase();
+function patternsFor(host) {
+    return hostVariants(host).flatMap((h) => [`https://${h}/*`, `http://${h}/*`]);
+}
+
+// Takes a pasted chapter link (or just a domain) and returns the site's hostname, or null.
+// Everything after the host (book, chapter, query string, tokens) is ignored and never stored.
+function parseLink(input) {
+    let raw = input.trim();
     if (!raw) return null;
-    if (!/^[a-z][a-z0-9+.-]*:\/\//.test(raw)) raw = 'https://' + raw;
+    if (!/^[a-z][a-z0-9+.-]*:\/\//i.test(raw)) raw = 'https://' + raw;
     let url;
     try {
         url = new URL(raw);
@@ -27,7 +43,7 @@ function normalizeHost(input) {
         return null;
     }
     if (!['http:', 'https:'].includes(url.protocol)) return null;
-    const host = url.hostname;
+    const host = url.hostname.toLowerCase();
     if (!host.includes('.') || host.includes('*')) return null;
     return host;
 }
@@ -64,7 +80,7 @@ async function render() {
         const parts = [];
         if (site.titleSel) parts.push('title: ' + site.titleSel);
         if (site.contentSel) parts.push('text: ' + site.contentSel);
-        const granted = await chrome.permissions.contains({ origins: patternFor(site.host) });
+        const granted = await chrome.permissions.contains({ origins: patternsFor(site.host) });
         if (!granted) parts.push('access not granted');
         if (parts.length) {
             const sel = document.createElement('div');
@@ -88,7 +104,7 @@ async function removeSite(host) {
     const sites = (await loadSites()).filter((s) => s.host !== host);
     await chrome.storage.sync.set({ sites });
     try {
-        await chrome.permissions.remove({ origins: patternFor(host) });
+        await chrome.permissions.remove({ origins: patternsFor(host) });
     } catch {
         // permission may already be gone
     }
@@ -97,13 +113,26 @@ async function removeSite(host) {
     render();
 }
 
+// Live preview of which site the pasted link resolves to.
+linkInput.addEventListener('input', () => {
+    const value = linkInput.value;
+    if (!value.trim()) {
+        previewEl.textContent = DEFAULT_PREVIEW;
+        return;
+    }
+    const host = parseLink(value);
+    previewEl.textContent = host
+        ? `NovExtractor will run on: ${host}`
+        : "That doesn't look like a web address yet.";
+});
+
 form.addEventListener('submit', async (e) => {
     e.preventDefault();
     setStatus('');
 
-    const host = normalizeHost(hostInput.value);
+    const host = parseLink(linkInput.value);
     if (!host) {
-        setStatus('Enter a valid site address, like example.com.', true);
+        setStatus('Paste a link to a chapter page, like https://example.com/book/my-novel/chapter-1.', true);
         return;
     }
     const titleSel = titleInput.value.trim();
@@ -113,10 +142,10 @@ form.addEventListener('submit', async (e) => {
         return;
     }
 
-    // Must be called directly from the user gesture (this submit handler).
+    // Must be called directly from the user gesture (this submit handler), before any other await.
     let granted = false;
     try {
-        granted = await chrome.permissions.request({ origins: patternFor(host) });
+        granted = await chrome.permissions.request({ origins: patternsFor(host) });
     } catch (err) {
         setStatus('Could not request access: ' + err.message, true);
         return;
@@ -133,7 +162,8 @@ form.addEventListener('submit', async (e) => {
     chrome.runtime.sendMessage({ type: 'sync' });
 
     form.reset();
-    setStatus(`Added ${host}. Reload any open tabs on that site to see the button.`);
+    previewEl.textContent = DEFAULT_PREVIEW;
+    setStatus(`Added ${host}. Tabs already open on this site get the NovExtractor button within a moment.`);
     render();
 });
 

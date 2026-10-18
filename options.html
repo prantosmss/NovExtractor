@@ -86,6 +86,8 @@
         .sel { font-size: 13px; color: var(--muted); word-break: break-all; }
         #status { min-height: 1.5em; margin-top: 12px; font-size: 14px; }
         #status.error { color: var(--danger); }
+        details { margin-top: 14px; }
+        summary { cursor: pointer; font-size: 14px; }
         code { background: var(--bg); padding: 1px 5px; border-radius: 4px; font-size: 13px; }
     </style>
 </head>
@@ -97,19 +99,24 @@
     <section class="card" aria-labelledby="add-title">
         <h2 id="add-title">Add a site</h2>
         <form id="add-form" novalidate>
-            <label for="host">Site address</label>
-            <input type="text" id="host" placeholder="example.com" autocomplete="off" spellcheck="false" required>
-
-            <label for="titleSel">Title selector <span class="muted">(optional)</span></label>
-            <input type="text" id="titleSel" placeholder="h1" autocomplete="off" spellcheck="false">
-
-            <label for="contentSel">Chapter text selector <span class="muted">(optional)</span></label>
-            <input type="text" id="contentSel" placeholder=".chapter-content" autocomplete="off" spellcheck="false">
-
-            <p class="muted" style="margin-top:10px">
-                Leave the selectors empty to let NovExtractor guess the chapter text.
-                If it picks the wrong part of the page, enter a CSS selector for the element that holds the chapter.
+            <label for="link">Link to a chapter you're reading</label>
+            <input type="text" id="link" placeholder="https://example.com/book/my-novel/chapter-1" autocomplete="off" spellcheck="false" required>
+            <p id="preview" class="muted" style="margin:8px 0 0" aria-live="polite">
+                Paste the address of any chapter page. NovExtractor picks out the site and finds the chapter text on its own.
             </p>
+
+            <details>
+                <summary class="muted">Advanced: custom selectors</summary>
+                <p class="muted" style="margin:10px 0 0">
+                    Only needed if the wrong text gets exported. Enter a CSS selector for the element that holds the chapter.
+                </p>
+                <label for="titleSel">Title selector <span class="muted">(optional)</span></label>
+                <input type="text" id="titleSel" placeholder="h1" autocomplete="off" spellcheck="false">
+
+                <label for="contentSel">Chapter text selector <span class="muted">(optional)</span></label>
+                <input type="text" id="contentSel" placeholder=".chapter-content" autocomplete="off" spellcheck="false">
+            </details>
+
             <button type="submit" class="primary">Add site and grant access</button>
         </form>
         <div id="status" role="status" aria-live="polite"></div>

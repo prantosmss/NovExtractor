@@ -1,4 +1,4 @@
-# _NovExtractor_ 
+# NovExtractor
 
 A small Chrome extension that exports the web novel chapter you're reading to **Markdown**, **EPUB** or **PDF**.
 
@@ -10,20 +10,18 @@ A small Chrome extension that exports the web novel chapter you're reading to **
 
 ## Install
 
-- **Clean Floating Widget:** Injects a subtle, beautifully styled menu button directly into your reading pages without cluttering the screen.
-- **Markdown Export (`.md`):** Instantly extracts the chapter title and paragraphs into a clean Markdown text file for note-taking apps or personal archiving.
-- **EPUB Export:** Packages the extracted chapter into a structured HTML/EPUB structure.
-- **PDF Export:** Opens a clean print-optimized preview layout with shortcut instructions to effortlessly save your chapters as a physical PDF.
-- **Custom Theme:** Styled with a sleek deep blue interface (`#014bb9`) matching a modern aesthetic.
+1. Download or clone this repo.
+2. Open `chrome://extensions` and turn on **Developer mode**.
+3. Click **Load unpacked** and select the `NovExtractor` folder.
 
 ## Use
 
 1. Click the NovExtractor toolbar icon to open settings.
-2. Enter a site address (for example `example.com`), then click **Add site and grant access**. Approve the Chrome prompt.
-3. Open a chapter on that site and reload the tab. A **NovExtractor** button appears in the bottom-right corner.
+2. Paste the link of a chapter you're reading (for example `https://example.com/book/my-novel/chapter-1`) and click **Add site and grant access**. NovExtractor takes only the site from the link, and Chrome asks you to approve access to it. The rest of the link is ignored and never stored.
+3. Open any chapter on that site. A **NovExtractor** button appears in the bottom-right corner (tabs that are already open get it right away).
 4. Pick **Download .md**, **Download .epub** or **Save as PDF**.
 
-If the wrong text is exported, open settings and add a **chapter text selector** (and optionally a **title selector**) for that site. Right-click the chapter text, choose *Inspect*, and use the class or id of the element that wraps the chapter, for example `.chapter-content` or `#chapter-body`.
+If the wrong text is exported, open settings, expand **Advanced** and add a **chapter text selector** (and optionally a **title selector**) for that site. Right-click the chapter text, choose *Inspect*, and use the class or id of the element that wraps the chapter, for example `.chapter-content` or `#chapter-body`.
 
 Remove a site in settings and its access is revoked.
 
@@ -44,7 +42,39 @@ NovExtractor is for **personal offline reading and archiving** of content you ar
 | `scripting` | Registers the export button for the sites you added. |
 | optional host access | Requested per site, only when you add it. |
 
-```text
-NovExtractor/
-├── manifest.json   # Chrome extension configuration manifest
-└── content.js      # Core extraction logic and UI layout controller
+## Project structure
+
+```
+manifest.json    Manifest V3 config
+background.js    Registers the content script for the sites you added
+options.html/js  Settings page: add and remove sites, custom selectors
+core.js          Chapter detection and Markdown / EPUB / print formatting
+zip.js           Minimal ZIP writer used to build the EPUB
+content.js       The floating export button
+```
+
+## Limitations
+
+- Exports **one chapter at a time**. Bulk export is not supported.
+- Chapter detection is a heuristic. Sites that load text in unusual ways may need a custom selector.
+- PDF export uses your browser's print dialog (Save as PDF).
+
+## Roadmap
+
+- [x] User-managed site list with per-site permission
+- [x] Valid EPUB 3 export (checked with EPUBCheck)
+- [x] Markdown and PDF (print) export
+- [ ] Screenshots / demo GIF in this README
+- [ ] Multi-chapter export (next-chapter button → one EPUB)
+- [ ] Optional cover and author metadata in the EPUB
+- [ ] Preserve italics, bold and scene breaks in exports
+- [ ] "Pick the text on the page" selector tool instead of typing CSS
+- [ ] Firefox build
+- [ ] Chrome Web Store listing
+- [ ] Automated tests for extraction and EPUB output
+
+Ideas and pull requests are welcome. Please open an issue first for anything big.
+
+## License
+
+MIT
